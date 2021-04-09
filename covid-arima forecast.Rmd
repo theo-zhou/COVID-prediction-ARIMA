@@ -1,0 +1,130 @@
+---
+title: "covid forecast"
+author: "Zixu (Theo) Zhou"
+date: "2/10/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library("forecast")
+library("tseries") 
+library(readxl)
+```
+
+```{r}
+##import data
+full<-read_xlsx("United_States_COVID-19_Cases_and_Deaths_by_State_over_Time.xlsx")
+data = subset(full, state=="IA")
+names(data)
+head(data,5)
+cases = data$tot_cases
+date =as.Date(data$submission_date)
+```
+
+```{r}
+#plot on tiem series 
+yy = ts(cases, frequency = 365,start = c(2020,22))
+plot.ts(yy)	
+```
+```{r}
+##auto-Arima
+m6 = auto.arima(yy)		# fits ARIMA(p,d,q) x (P, D, Q) automatically
+m6.predict = forecast:::forecast.Arima(m6, h = 7, level = c(68, 90))
+plot(m6.predict)
+summary(m6.predict)
+```
+
+```{r}
+##stationary test
+adf.test(yy)	#nonstationary
+yd = diff(yy,differences = 1)			
+adf.test(yd)	#non-staionary
+yd1 = diff(yy,differences = 2)	
+adf.test(yd1) #stationary
+plot.ts(yd1)
+```
+```{r}
+# To decide AR(p), plot Pacf. For AR(p) => Pacf becomes zero at some lag p
+
+Pacf(yd1, lag.max = 20)					# Pacf suggests p = 8
+
+Acf(yd1, lag.max = 10)	       # Acf suggests q = 1 
+```
+```{r}
+
+m1 = Arima(yy, order=c(8,2,1))			# note: differencing (d = 1) is specified in the "order"; so fit the original yy series (yy, not yd)
+
+m1				# see the output of m1. The estimated phi value and its std err to assess significnace
+
+summary(m1)		
+m1.predict = forecast:::forecast.Arima(m1, h = 7, level = c(68, 90))
+plot(m1.predict)
+
+summary(m1.predict)	
+
+```
+```{r}
+##try out 
+m2 = Arima(yy, order=c(2,2,1))
+m3 = Arima(yy, order=c(2,2,0))
+m4 = Arima(yy, order=c(8,2,1), seasonal = list(order = c(0,0,1), period = 52))
+m5 = Arima(yy, order=c(1,2,1), seasonal = list(order = c(0,0,1), period = 52))
+m2.predict = forecast:::forecast.Arima(m2, h = 7, level = c(68, 90))
+plot(m2.predict)
+summary(m2.predict)	
+m3.predict = forecast:::forecast.Arima(m3, h = 7, level = c(68, 90))
+plot(m3.predict)
+summary(m3.predict)	
+m4.predict = forecast:::forecast.Arima(m4, h = 7, level = c(68, 90))
+plot(m4.predict)
+summary(m4.predict)	 #BIC =5532 MAPE=1.695
+m5.predict = forecast:::forecast.Arima(m5, h = 7, level = c(68, 90))
+plot(m5.predict)
+summary(m5.predict)	
+
+```
+
+```{r}
+#plot on death time series
+death = data$tot_death
+yyy = ts(death, frequency = 365,start = c(2020,22))
+plot.ts(yyy)	
+```
+```{r}
+##auto-Arima
+n6 = auto.arima(yyy)		# fits ARIMA(p,d,q) x (P, D, Q) automatically
+n6.predict = forecast:::forecast.Arima(m6, h = 7, level = c(68, 90))
+plot(n6.predict)
+summary(n6.predict) #BIC = 5574 MAPE= 1.725
+```
+```{r}
+##stationary test
+adf.test(yyy)	#nonstationary
+ydd = diff(yyy,differences = 1)	
+adf.test(ydd)	#non-staionary
+ydd1 = diff(yyy,differences = 2)	
+adf.test(ydd1)#stationary   
+# d = 2
+plot(ydd1)
+```
+```{r}
+# To decide AR(p), plot Pacf. For AR(p) => Pacf becomes zero at some lag p
+
+Pacf(ydd1, lag.max = 20)					# Pacf suggests p = 1 / 5
+
+Acf(ydd1, lag.max = 10)	       # Acf suggests q = 2 
+```
+```{r}
+n1 = Arima(yyy, order=c(5,2,1))			# note: differencing (d = 1) is specified in the "order"; so fit the original yy series (yy, not yd)
+
+summary(n1)		
+n1.predict = forecast:::forecast.Arima(n1, h = 7, level = c(68, 90))
+plot(n1.predict)
+
+summary(n1.predict)	#BIC = 3144  MAPE = 1.696
+```
+
